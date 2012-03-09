@@ -19,13 +19,15 @@ class StoogeTest < Test::Unit::TestCase
   end
 
   def test_enqueue_and_work_a_job
-    EM.run do
+    EM.synchrony do
       val = rand(999999)
-      Stooge.job('my.job') { |args| puts "foo"; $result = args['val'] }
+      Stooge.job('my.job') { |args| $result = args['val'] }
       Stooge.enqueue('my.job', :val => val)
       Stooge.work_one_job
+      EM::Synchrony.sleep 0.1
       assert_equal val, $result
-      #AMQP.stop{ EM.stop }
+      AMQP.stop
+      EM.stop
     end
   end
 

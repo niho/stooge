@@ -2,9 +2,7 @@ module Stooge
   module WorkQueue
 
     def enqueue(jobs, data = {}, headers = {}, &block)
-      Fiber.new do
-        EM::Synchrony.sync aenqueue(jobs, data, headers, &block)
-      end.resume
+      EM::Synchrony.sync aenqueue(jobs, data, headers, &block)
     end
 
     def aenqueue(jobs, data = {}, headers = {}, &block)
@@ -20,13 +18,15 @@ module Stooge
       end
 
       encoded = MultiJson.encode(data)
-      log "send: #{queue}:#{encoded}"
 
-      exchange = amqp_channel.direct('')
       deferrable = EM::DefaultDeferrable.new
-      exchange.publish(encoded, headers.merge(:routing_key => queue)) do
-        block.call unless block.nil?
-        deferrable.set_deferred_status :succeeded
+      amqp_channel do
+        amqp_channel.direct('') do |exchange|
+          exchange.publish(encoded, headers.merge(:routing_key => queue)) do
+            block.call unless block.nil?
+            deferrable.set_deferred_status :succeeded
+          end
+        end
       end
       deferrable
     end
@@ -39,23 +39,23 @@ module Stooge
         channel.queue(queue, :durable => true, :auto_delete => false).unsubscribe
       end
       handler.sub = lambda do |channel|
-        log "subscribing to #{queue}"
-        channel.queue(queue, :durable => true, :auto_delete => false).subscribe(:ack => true) do |h,m|
-          unless AMQP.closing?
-            begin
-              log "recv: #{queue}:#{m}"
-
-              args = MultiJson.decode(m)
-
-              result = yield(args,h)
-
-              next_job(args, result)
-            rescue Object => e
-              raise unless error_handler
-              error_handler.call(e,queue,m,h)
+        channel.queue(queue, :durable => true, :auto_delete => false) do |queue|
+          queue.subscribe(:ack => true) do |h,m|
+            unless channel.connection.closing?
+              begin
+                
+                args = MultiJson.decode(m)
+                
+                result = yield(args,h)
+                
+                next_job(args, result)
+              rescue Object => e
+                raise unless error_handler
+                error_handler.call(e,queue,m,h)
+              end
+              h.ack
+              check_all(channel)
             end
-            h.ack
-            check_all(channel)
           end
         end
       end
