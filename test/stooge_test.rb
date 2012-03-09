@@ -32,7 +32,7 @@ class StoogeTest < Test::Unit::TestCase
       Stooge.check_all
       EM::Synchrony.sync deferrable
       assert_equal val, $result
-      AMQP.stop do puts "hehu" end
+      AMQP.stop
       EM.stop
     end
   end
