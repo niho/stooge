@@ -45,7 +45,7 @@ module Stooge
               begin
                 
                 args = MultiJson.decode(m)
-                
+
                 result = yield(args,h)
                 
                 next_job(args, result)
@@ -54,12 +54,13 @@ module Stooge
                 error_handler.call(e,queue,m,h)
               end
               h.ack
-              check_all(channel)
+              check_all
             end
           end
         end
       end
       add_handler(handler)
+      handler
     end
 
   end

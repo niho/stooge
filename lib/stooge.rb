@@ -31,9 +31,13 @@ module Stooge
     @@logger = blk
   end
 
-  def check_all(channel)
+  def check_all
     @@handlers ||= []
-    @@handlers.each { |h| h.check(channel) }
+    amqp_channel do
+      @@handlers.each do |h| 
+        h.check(amqp_channel) 
+      end
+    end
   end
 
   def add_handler(handler)
@@ -48,15 +52,8 @@ module Stooge
 
   def start
     AMQP.start(amqp_config) do |connection|
-      AMQP::Channel.new(connection, :prefetch => 1) do |channel|
-        check_all(channel)
-      end
-    end
-  end
-
-  def work_one_job
-    amqp_channel do
-      check_all(amqp_channel)
+      @@amqp_connection = connection
+      check_all
     end
   end
 

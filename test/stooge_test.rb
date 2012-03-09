@@ -21,12 +21,18 @@ class StoogeTest < Test::Unit::TestCase
   def test_enqueue_and_work_a_job
     EM.synchrony do
       val = rand(999999)
-      Stooge.job('my.job') { |args| $result = args['val'] }
-      Stooge.enqueue('my.job', :val => val)
-      Stooge.work_one_job
-      EM::Synchrony.sleep 0.1
+      deferrable = EM::DefaultDeferrable.new
+      Stooge.job('test.job') do |args| 
+        if val == args['val']
+          $result = val
+          deferrable.set_deferred_status :succeeded
+        end
+      end
+      Stooge.enqueue('test.job', :val => val)
+      Stooge.check_all
+      EM::Synchrony.sync deferrable
       assert_equal val, $result
-      AMQP.stop
+      AMQP.stop do puts "hehu" end
       EM.stop
     end
   end
