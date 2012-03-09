@@ -1,6 +1,15 @@
 module Stooge
   module WorkQueue
 
+    class Execution
+      attr_accessor :handler, :headers, :payload
+      def initialize(handler, headers, payload)
+        @handler = handler
+        @headers = headers
+        @payload = payload
+      end
+    end
+
     def enqueue(jobs, data = {}, headers = {}, &block)
       EM::Synchrony.sync aenqueue(jobs, data, headers, &block)
     end
@@ -45,8 +54,9 @@ module Stooge
               begin
                 
                 args = MultiJson.decode(m)
-
-                result = yield(args,h)
+                
+                execution = Execution.new(handler, h, args)
+                result = execution.instance_eval &blk
                 
                 next_job(args, result)
               rescue Object => e

@@ -22,8 +22,8 @@ class StoogeTest < Test::Unit::TestCase
     EM.synchrony do
       val = rand(999999)
       deferrable = EM::DefaultDeferrable.new
-      Stooge.job('test.job') do |args| 
-        if val == args['val']
+      Stooge.job('test.job') do 
+        if val == payload['val']
           $result = val
           deferrable.set_deferred_status :succeeded
         end
