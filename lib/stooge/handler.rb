@@ -15,6 +15,10 @@ module Stooge
       @when.call
     end
 
+    def unsubscribe!
+      @when = lambda { false }
+    end
+
     def check(channel)
       if should_sub?
         @sub.call(channel) unless @on

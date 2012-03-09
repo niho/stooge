@@ -15,6 +15,9 @@ module Stooge
   extend Stooge::Pubsub
   extend Stooge::Rpc
 
+  @@amqp_channel = nil
+  @@amqp_connection = nil
+
   def log(msg)
     @@logger ||= proc { |m| puts "#{Time.now} :stooge: #{m}" }
     @@logger.call(msg)
@@ -28,9 +31,13 @@ module Stooge
     @@logger = blk
   end
 
-  def check_all(channel)
+  def check_all
     @@handlers ||= []
-    @@handlers.each { |h| h.check(channel) }
+    amqp_channel do
+      @@handlers.each do |h| 
+        h.check(amqp_channel) 
+      end
+    end
   end
 
   def add_handler(handler)
@@ -45,18 +52,8 @@ module Stooge
 
   def start
     AMQP.start(amqp_config) do |connection|
-      AMQP::Channel.new(connection) do |channel|
-        channel.prefetch(1)
-        check_all(channel)
-      end
-    end
-  end
-
-  def work_one_job
-    AMQP::Channel.new(amqp_connection) do |channel|
-      channel.prefetch(1)
-      check_all(channel)
-      return
+      @@amqp_connection = connection
+      check_all
     end
   end
 
@@ -83,12 +80,16 @@ module Stooge
       raise "invalid AMQP_URL: #{uri.inspect} (#{e})"
     end
 
-    def amqp_connection
+    def amqp_connection(&block)
       @@amqp_connection ||= AMQP.connect(amqp_config)
+      @@amqp_connection.on_open(&block)
+      @@amqp_connection
     end
 
-    def amqp_channel
-      @@amqp_channel ||= AMQP::Channel.new(amqp_connection)
+    def amqp_channel(&block)
+      @@amqp_channel ||= AMQP::Channel.new(amqp_connection, :prefetch => 1)
+      @@amqp_channel.once_open(&block)
+      @@amqp_channel
     end
 
     def next_job(args, response)
