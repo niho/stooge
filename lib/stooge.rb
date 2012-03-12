@@ -15,17 +15,25 @@ module Stooge
   extend Stooge::Pubsub
   extend Stooge::Rpc
 
+  def amqp_url
+    @@amqp_url ||= ENV["AMQP_URL"] || "amqp://guest:guest@localhost/"
+  end
+
+  def amqp_url=(url)
+    @@amqp_url = url
+  end
+
   def log(msg)
     @@logger ||= proc { |m| puts "#{Time.now} :stooge: #{m}" }
     @@logger.call(msg)
   end
 
-  def error(&blk)
-    @@error_handler = blk
-  end
-
   def logger(&blk)
     @@logger = blk
+  end
+
+  def error(&blk)
+    @@error_handler = blk
   end
 
   def check_all(channel)
@@ -58,14 +66,6 @@ module Stooge
       check_all(channel)
       return
     end
-  end
-
-  def amqp_url
-    @@amqp_url ||= ENV["AMQP_URL"] || "amqp://guest:guest@localhost/"
-  end
-
-  def amqp_url=(url)
-    @@amqp_url = url
   end
 
   private
