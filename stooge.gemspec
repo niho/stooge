@@ -8,8 +8,8 @@ Gem::Specification.new do |s|
   s.authors     = ["Niklas Holmgren"]
   s.email       = ["niklas@sutajio.se"]
   s.homepage    = "https://github.com/sutajio/stooge"
-  s.summary     = %q{Super advanced job queue over AMPQ}
-  s.description = %q{Super advanced job queue over AMPQ}
+  s.summary     = %q{Super advanced job queue over AMQP}
+  s.description = %q{Super advanced job queue over AMQP}
 
   s.rubyforge_project = "stooge"
 
@@ -21,5 +21,6 @@ Gem::Specification.new do |s|
   s.add_dependency 'amqp'
   s.add_dependency 'em-synchrony'
   s.add_dependency 'multi_json'
+  s.add_development_dependency 'rspec'
 
 end

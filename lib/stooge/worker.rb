@@ -4,10 +4,10 @@ module Stooge
     def self.run!
       Stooge.log "Starting stooge"
 
-      Signal.trap('INT') { AMQP.stop{ EM.stop } }
-      Signal.trap('TERM'){ AMQP.stop{ EM.stop } }
+      Signal.trap('INT') { Stooge.stop! }
+      Signal.trap('TERM'){ Stooge.stop! }
 
-      Stooge.start
+      Stooge.start!
     end
 
     def self.run?
