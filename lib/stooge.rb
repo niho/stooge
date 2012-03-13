@@ -13,6 +13,7 @@ module Stooge
 
   @@connection = nil
   @@channel = nil
+  @@handlers = []
   @@error_handler = Proc.new do |exception, handler, payload, metadata|
     Stooge.log "#{handler.queue_name} failed: #{exception.inspect}"
     raise exception
@@ -57,18 +58,40 @@ module Stooge
   end
 
   def start_handlers(channel)
-    @@handlers ||= []
     @@handlers.each { |h| h.start(channel) }
   end
 
   def add_handler(handler)
-    @@handlers ||= []
     @@handlers << handler
   end
 
   def handlers?
-    @@handlers ||= []
     @@handlers.empty? == false
+  end
+
+  #
+  # Execute a handler block without going through AMQP at all. This is a
+  # helper method for use in tests. It allows you to test the business logic
+  # in a handler block without having to mess with the details of how Stooge
+  # works internally.
+  #
+  # Examples
+  #
+  #   Stooge.run_handler('example.work', :foo => 'bar').should == 42
+  #
+  # @param [String] queue_name the name of the handler to run
+  # @param [Object] data message data to send to the handler as arguments
+  # @param [Hash] headers optional headers to send as second argument to the
+  #   handler block
+  #
+  # @return the return value of the handler block
+  #
+  def run_handler(queue_name, data, headers = {})
+    @@handlers.each do |handler|
+      if handler.queue_name == queue_name
+        return handler.block.call(data, headers)
+      end
+    end
   end
 
   #

@@ -63,6 +63,17 @@ Stooge.logger do |msg|
 end
 ```
 
+Testing
+-------
+
+To test the business logic in your job handler you can use the ```Stooge.run_handler``` helper method:
+
+```ruby
+Stooge.run_handler('example.work', { :foo => 'bar' }).should == 42
+```
+
+The return value is the return value from executing the job handler block.
+
 Author
 ------
 
