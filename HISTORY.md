@@ -1,5 +1,5 @@
 
-### 0.1.0 (2012-03-09)
+### 0.1.0 (2012-03-14)
 
 * Implemented same basic feature set as Minion (i.e. work queues)
 * Added ability to easily test job handlers
