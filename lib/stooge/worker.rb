@@ -1,15 +1,23 @@
 module Stooge
   class Worker
 
+    #
+    # Start the Stooge worker that processes jobs.
+    #
     def self.run!
       Stooge.log "Starting stooge"
 
-      Signal.trap('INT') { AMQP.stop{ EM.stop } }
-      Signal.trap('TERM'){ AMQP.stop{ EM.stop } }
+      Signal.trap('INT') { Stooge.stop! }
+      Signal.trap('TERM'){ Stooge.stop! }
 
-      Stooge.start
+      Stooge.start!
     end
 
+    #
+    # Should the Stooge worker be started?
+    #
+    # @return [Boolean] true or false
+    #
     def self.run?
       Stooge.handlers? &&
         File.expand_path($0) == File.expand_path(app_file)
@@ -46,5 +54,8 @@ module Stooge
 
   end
 
+  #
+  # Starte the worker at exit, if appropriate.
+  #
   at_exit { Worker.run! if $!.nil? && Worker.run? }
 end

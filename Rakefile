@@ -1,12 +1,11 @@
 require 'bundler/gem_tasks'
-require 'rake/testtask'
+require 'rspec/core/rake_task'
 
 $LOAD_PATH.unshift 'lib'
 
-task :default => [:test]
+task :default => [:spec]
 
-task :test do
-  Dir.glob('test/**/*_test.rb').each do |file|
-    require File.expand_path(file)
-  end
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.rspec_opts = '--color'
+  t.pattern = 'spec/**/*_spec.rb'
 end
