@@ -3,6 +3,15 @@ module Stooge
 
     attr_accessor :queue_name, :queue_options, :block
 
+    #
+    # Create a new handler object.
+    #
+    # @param [String] queue the name of the queue that this handler will pick
+    #   jobs from.
+    # @param [Hash] options handler options.
+    # @option options [Hash] :queue_options Options to use when creating the
+    #   queue.
+    #
     def initialize(queue, options = {})
       @queue_name = queue
       @queue_options = options[:queue_options] || {}
@@ -10,6 +19,12 @@ module Stooge
       @block = lambda {}
     end
 
+    #
+    # Start subscribing to the queue that this handler corresponds to. When
+    # a message arive; parse it and call the handler block with the data.
+    #
+    # @param [AMQP::Channel] channel an open AMQP channel
+    #
     def start(channel)
       Stooge.log "starting handler for #{@queue_name}"
       channel.queue(@queue_name, @queue_options) do |queue|

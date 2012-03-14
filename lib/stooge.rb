@@ -40,31 +40,90 @@ module Stooge
     @@amqp_url = url
   end
 
+  #
+  # Log message using the Stooge logger.
+  #
+  # @param [String] msg the message to log.
+  #
   def log(msg)
     @@logger ||= proc { |m| puts "#{Time.now} :stooge: #{m}" }
     @@logger.call(msg)
   end
 
+  #
+  # Configure a custom logger for Stooge. The block gets yielded with the
+  # log message. You can do whatever you want with it. The default behaviour
+  # is to simply output to stdout.
+  #
+  # @param [Proc] block a {::Proc} to yield when a message needs to be logged.
+  # @yieldparam [String] msg the message to log.
+  #
   def logger(&blk)
     @@logger = blk
   end
 
+  #
+  # Configure a global error handler for Stooge jobs. The block gets yielded
+  # when a job handler raises an exception. The default error handler simply
+  # logs the error and re-raises the exception. You can use this to for
+  # example re-queue a failed job or send email notifications when a job
+  # fails.
+  #
+  # If you don't raise an exception in the error handler the job will be
+  # acked with the broker and the broker will consider the job done and remove
+  # it from the queue. If you for some reason want to force the job to be
+  # acked even when you raise an error you can manually ack it before you
+  # raise the error, like this:
+  #
+  #   Stooge.error do |exception, handler, payload, metadata|
+  #     metadata.ack
+  #     raise exception
+  #   end
+  #
+  # @param [Proc] block a {::Proc} to yield when an error happens.
+  # @yieldparam [Exception] exception the exception object raised.
+  # @yieldparam [Stooge::Handler] handler the handler that failed.
+  # @yieldparam [Object] payload the message payload that was processed when
+  #   the handler failed.
+  # @yieldparam [Hash] metadata the message metadata (headers, etc.)
+  #
   def error(&blk)
     @@error_handler = blk
   end
 
+  #
+  # The global error handler.
+  #
+  # @return [Proc] the error handler block.
+  # 
   def error_handler
     @@error_handler
   end
 
+  #
+  # Start listening to for new jobs on all queues using the specified channel.
+  #
+  # @param [AMQP::Channel] channel an open AMQP channel
+  #
   def start_handlers(channel)
     @@handlers.each { |h| h.start(channel) }
   end
 
+  #
+  # Add a new job handler. Used by {Stooge.job}.
+  # 
+  # @param [Stooge::Handler] handler a handler object
+  #
   def add_handler(handler)
     @@handlers << handler
   end
 
+  #
+  # Are there any job handlers defined? Used by {Stooge::Worker} to check if
+  # it should start a worker process.
+  #
+  # @return [Boolean] true or false
+  #
   def handlers?
     @@handlers.empty? == false
   end

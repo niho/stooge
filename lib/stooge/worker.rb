@@ -1,6 +1,9 @@
 module Stooge
   class Worker
 
+    #
+    # Start the Stooge worker that processes jobs.
+    #
     def self.run!
       Stooge.log "Starting stooge"
 
@@ -10,6 +13,11 @@ module Stooge
       Stooge.start!
     end
 
+    #
+    # Should the Stooge worker be started?
+    #
+    # @return [Boolean] true or false
+    #
     def self.run?
       Stooge.handlers? &&
         File.expand_path($0) == File.expand_path(app_file)
@@ -46,5 +54,8 @@ module Stooge
 
   end
 
+  #
+  # Starte the worker at exit, if appropriate.
+  #
   at_exit { Worker.run! if $!.nil? && Worker.run? }
 end
