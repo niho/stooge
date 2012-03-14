@@ -1,32 +1,51 @@
 module Stooge
   class Handler
 
-    attr_accessor :queue, :sub, :unsub, :when, :on
+    attr_accessor :queue_name, :queue_options, :block
 
-    def initialize(queue)
-      @queue = queue
-      @when = lambda { true }
-      @sub = lambda {}
-      @unsub = lambda {}
-      @on = false
+    #
+    # Create a new handler object.
+    #
+    # @param [String] queue the name of the queue that this handler will pick
+    #   jobs from.
+    # @param [Hash] options handler options.
+    # @option options [Hash] :queue_options Options to use when creating the
+    #   queue.
+    #
+    def initialize(queue, options = {})
+      @queue_name = queue
+      @queue_options = options[:queue_options] || {}
+      @options = options
+      @block = lambda {}
     end
 
-    def should_sub?
-      @when.call
-    end
-
-    def check(channel)
-      if should_sub?
-        @sub.call(channel) unless @on
-        @on = true
-      else
-        @unsub.call(channel) if @on
-        @on = false
+    #
+    # Start subscribing to the queue that this handler corresponds to. When
+    # a message arive; parse it and call the handler block with the data.
+    #
+    # @param [AMQP::Channel] channel an open AMQP channel
+    #
+    def start(channel)
+      Stooge.log "starting handler for #{@queue_name}"
+      channel.queue(@queue_name, @queue_options) do |queue|
+        queue.subscribe(:ack => true) do |metadata, payload|
+          Stooge.log "recv: #{@queue_name}"
+          begin
+            case metadata.content_type
+            when 'application/json'
+              args = MultiJson.decode(payload)
+            else
+              args = payload
+            end
+            @block.call(args, metadata.headers)
+          rescue Object => e
+            if Stooge.error_handler
+              Stooge.error_handler.call(e,self,payload,metadata)
+            end
+          end
+          metadata.ack
+        end
       end
-    end
-
-    def to_s
-      "<handler queue=#{@queue} on=#{@on}>"
     end
 
   end

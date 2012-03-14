@@ -1,110 +1,72 @@
 module Stooge
   module WorkQueue
 
+    #
     # Push a job onto a named queue.
     #
-    # jobs    - The name of a work queue or an array of names that the job
-    #           will be sent through in sequential order (a workflow).
-    # data    - The data to send as input to the job. Needs to be JSON
-    #           serializable.
-    # headers - AMQP headers to include in the job that gets pushed. Needs to
-    #           be a hash with key/value pairs.
-    #
-    # Yields when the job has been put onto the queue, if a block is given.
-    #
-    # Examples
+    # Example:
     #
     #   Stooge.enqueue('example.work')
     #
-    #   Stooge.enqueue(['make.sandwich', 'eat.sandwich'], 'for' => 'me')
+    # @param [String] queue_name The name of a work queue or an array of
+    #   names that the job will be sent through in sequential order (a
+    #   workflow).
+    # @param [Object] data The data to send as input to the job. Needs to be
+    #   JSON serializable.
+    # @param [Hash] headers AMQP headers to include in the job that gets
+    #   pushed. Needs to be a hash with key/value pairs.
     #
-    # Returns nothing.
-    def enqueue(jobs, data = {}, headers = {}, &block)
-      Fiber.new do
-        EM::Synchrony.sync aenqueue(jobs, data, headers, &block)
-      end.resume
+    def enqueue(queue_name, data, headers = {})
+      EM::Synchrony.sync(aenqueue(queue_name, data, headers))
     end
 
-    # Asynchrounous version of enqueue.
     #
-    # jobs    - The name of a work queue or an array of names that the job
-    #           will be sent through in sequential order (a workflow).
-    # data    - The data to send as input to the job. Needs to be JSON
-    #           serializable.
-    # headers - AMQP headers to include in the job that gets pushed. Needs to
-    #           be a hash with key/value pairs.
+    # Asynchrounous version of enqueue. Yields when the job has been put onto
+    # the queue, if a block is given.
     #
-    # Yields when the job has been put onto the queue, if a block is given.
+    # @param [String] queue_name The name of a work queue or an array of
+    #   names that the job will be sent through in sequential order (a
+    #   workflow).
+    # @param [Object] data The data to send as input to the job. Needs to be
+    #   JSON serializable.
+    # @param [Hash] headers AMQP headers to include in the job that gets
+    #   pushed. Needs to be a hash with key/value pairs.
     #
-    # Returns an EM::DefaultDeferrable object.
-    def aenqueue(jobs, data = {}, headers = {}, &block)
-      raise "cannot enqueue a nil job" if jobs.nil?
-      raise "cannot enqueue an empty job" if jobs.empty?
-
-      ## jobs can be one or more jobs
-      if jobs.respond_to? :shift
-        queue = jobs.shift
-        data["next_job"] = jobs unless jobs.empty?
-      else
-        queue = jobs
-      end
-
-      encoded = MultiJson.encode(data)
-      log "send: #{queue}:#{encoded}"
-
-      exchange = amqp_channel.direct('')
+    # @return [EM::DefaultDeferrable] Returns an EM::DefaultDeferrable object.
+    # 
+    def aenqueue(queue_name, data, headers = {})
       deferrable = EM::DefaultDeferrable.new
-      exchange.publish(encoded, headers.merge(:routing_key => queue)) do
-        block.call unless block.nil?
-        deferrable.set_deferred_status :succeeded
+      with_channel do |channel|
+        options = {
+          :routing_key => queue_name,
+          :mandatory => true,
+          :content_type => 'application/json',
+          :headers => headers
+        }
+        channel.default_exchange.publish(MultiJson.encode(data), options) do
+          Stooge.log("enqueue: #{queue_name}(#{data})")
+          yield if block_given?
+          deferrable.set_deferred_status :succeeded
+        end
       end
       deferrable
     end
 
-    # Creates a job handler for a named queue.
-    # 
-    # queue   - The name of the work queue.
-    # options - Options for how the handler processes jobs (default: {}):
-    #           :when - If you want a worker to only subscribe to a queue
-    #                   under specific conditions this parameter takes a
-    #                   lambda as an argument. If the lambda returns true
-    #                   the job will be performed.
     #
-    # Examples
+    # Creates a job handler for a named queue.
+    #
+    # Example:
     #
     #   Stooge.job('example.work') do |args,headers|
     #     # Do the work here...
     #   end
     #
-    # Returns nothing.
-    def job(queue, options = {}, &blk)
-      handler = Stooge::Handler.new(queue)
-      handler.when = options[:when] if options[:when]
-      handler.unsub = lambda do |channel|
-        log "unsubscribing to #{queue}"
-        channel.queue(queue, :durable => true, :auto_delete => false).unsubscribe
-      end
-      handler.sub = lambda do |channel|
-        log "subscribing to #{queue}"
-        channel.queue(queue, :durable => true, :auto_delete => false).subscribe(:ack => true) do |h,m|
-          unless AMQP.closing?
-            begin
-              log "recv: #{queue}:#{m}"
-
-              args = MultiJson.decode(m)
-
-              result = yield(args,h)
-
-              next_job(args, result)
-            rescue Object => e
-              raise unless error_handler
-              error_handler.call(e,queue,m,h)
-            end
-            h.ack
-            check_all(channel)
-          end
-        end
-      end
+    # @param [String] queue The name of the work queue.
+    # @param [Proc] blk a {::Proc} that processes the jobs.
+    #
+    def job(queue, &blk)
+      handler = Stooge::Handler.new(queue, :queue_options => { :durable => true })
+      handler.block = blk
       add_handler(handler)
     end
 

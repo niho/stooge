@@ -27,7 +27,7 @@ To process a job add the following to a file called ```worker.rb``` and run it w
 require 'stooge'
 
 Stooge.job('example.puts') do |args|
-  puts args[:message]
+  puts args['message']
 end
 ```
 
@@ -40,6 +40,39 @@ EM.run do
   Stooge.enqueue('example.puts', :message => 'Hello, world!')
 end
 ```
+
+Error handling
+--------------
+
+When an error is thrown in a job handler, the job is requeued to be done later and the Stooge process exits. If you define an error handler, however, the error handler is run and the job is removed from the queue.
+
+```ruby
+Stooge.error do |e|
+  puts "got an error! #{e}"
+end
+```
+
+Logging
+-------
+
+Stooge logs to stdout via ```puts```. You can specify a custom logger like this:
+
+```ruby
+Stooge.logger do |msg|
+  puts msg
+end
+```
+
+Testing
+-------
+
+To test the business logic in your job handler you can use the ```Stooge.run_handler``` helper method:
+
+```ruby
+Stooge.run_handler('example.work', { :foo => 'bar' }).should == 42
+```
+
+The return value is the return value from executing the job handler block.
 
 Author
 ------
