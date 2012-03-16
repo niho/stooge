@@ -1,4 +1,8 @@
 
+### 0.1.2 (2012-03-16)
+
+* Made the default logger flush properly
+
 ### 0.1.1 (2012-03-16)
 
 * Added a test suite

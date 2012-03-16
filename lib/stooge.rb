@@ -14,6 +14,10 @@ module Stooge
   @@connection = nil
   @@channel = nil
   @@handlers = []
+  @@logger = Proc.new do |msg|
+    puts "#{Time.now} :stooge: #{msg}"
+    STDOUT.flush
+  end
   @@error_handler = Proc.new do |exception, handler, payload, headers|
     Stooge.log "#{handler.queue_name} failed: #{exception.inspect}"
     raise exception
@@ -46,7 +50,6 @@ module Stooge
   # @param [String] msg the message to log.
   #
   def log(msg)
-    @@logger ||= proc { |m| puts "#{Time.now} :stooge: #{m}" }
     @@logger.call(msg)
   end
 
