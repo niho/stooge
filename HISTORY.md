@@ -1,4 +1,8 @@
 
+### 0.1.1 (2012-03-16)
+
+* Added a test suite
+
 ### 0.1.0 (2012-03-14)
 
 * Implemented same basic feature set as Minion (i.e. work queues)
