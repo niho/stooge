@@ -14,7 +14,7 @@ module Stooge
   @@connection = nil
   @@channel = nil
   @@handlers = []
-  @@error_handler = Proc.new do |exception, handler, payload, metadata|
+  @@error_handler = Proc.new do |exception, handler, payload, headers|
     Stooge.log "#{handler.queue_name} failed: #{exception.inspect}"
     raise exception
   end
@@ -71,12 +71,10 @@ module Stooge
   #
   # If you don't raise an exception in the error handler the job will be
   # acked with the broker and the broker will consider the job done and remove
-  # it from the queue. If you for some reason want to force the job to be
-  # acked even when you raise an error you can manually ack it before you
-  # raise the error, like this:
+  # it from the queue. To make sure the job is not lost you can simply
+  # re-raise the same exception in your custom handler:
   #
-  #   Stooge.error do |exception, handler, payload, metadata|
-  #     metadata.ack
+  #   Stooge.error do |exception, handler, payload, headers|
   #     raise exception
   #   end
   #
@@ -85,7 +83,7 @@ module Stooge
   # @yieldparam [Stooge::Handler] handler the handler that failed.
   # @yieldparam [Object] payload the message payload that was processed when
   #   the handler failed.
-  # @yieldparam [Hash] metadata the message metadata (headers, etc.)
+  # @yieldparam [Hash] headers the message headers
   #
   def error(&blk)
     @@error_handler = blk
@@ -124,8 +122,16 @@ module Stooge
   #
   # @return [Boolean] true or false
   #
-  def handlers?
+  def has_handlers?
     @@handlers.empty? == false
+  end
+
+  #
+  # Remove all job handlers. Mainly useful in tests to create a clean slate
+  # for each test case.
+  #
+  def clear_handlers
+    @@handlers = []
   end
 
   #
@@ -148,7 +154,7 @@ module Stooge
   def run_handler(queue_name, data, headers = {})
     @@handlers.each do |handler|
       if handler.queue_name == queue_name
-        return handler.block.call(data, headers)
+        return handler.run(MultiJson.encode(data), 'application/json', headers)
       end
     end
   end

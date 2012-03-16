@@ -19,7 +19,7 @@ module Stooge
     # @return [Boolean] true or false
     #
     def self.run?
-      Stooge.handlers? &&
+      Stooge.has_handlers? &&
         File.expand_path($0) == File.expand_path(app_file)
     end
 

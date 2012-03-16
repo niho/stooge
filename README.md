@@ -44,10 +44,10 @@ end
 Error handling
 --------------
 
-When an error is thrown in a job handler, the job is requeued to be done later and the Stooge process exits. If you define an error handler, however, the error handler is run and the job is removed from the queue.
+When an error is thrown in a job handler, the job is re-queued to be done later and the Stooge process exits. If you define an error handler, however, the error handler is run and the job is removed from the queue.
 
 ```ruby
-Stooge.error do |e|
+Stooge.error do |exception, handler, payload, headers|
   puts "got an error! #{e}"
 end
 ```
