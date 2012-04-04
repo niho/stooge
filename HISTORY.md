@@ -1,4 +1,8 @@
 
+### 0.1.3 (2012-04-04)
+
+* Run work handlers in a fiber
+
 ### 0.1.2 (2012-03-16)
 
 * Made the default logger flush properly

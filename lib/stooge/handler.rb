@@ -48,9 +48,11 @@ module Stooge
     # @return [Object] the return value of the handler block
     #
     def run(payload, content_type, headers)
-      @block.call(
-        decode_payload(payload, content_type),
-        headers)
+      Fiber.new do
+        @block.call(
+          decode_payload(payload, content_type),
+          headers)
+      end.resume
     rescue Object => e
       if Stooge.error_handler
         Stooge.error_handler.call(e,self,payload,headers)
