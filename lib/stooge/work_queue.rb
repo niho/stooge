@@ -40,6 +40,7 @@ module Stooge
         options = {
           :routing_key => queue_name,
           :mandatory => true,
+          :persistent => true,
           :content_type => 'application/json',
           :headers => headers
         }

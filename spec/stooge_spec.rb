@@ -54,6 +54,7 @@ describe Stooge do
           {
             :routing_key => 'test.work',
             :mandatory => true,
+            :persistent => true,
             :content_type => 'application/json',
             :headers => { :foo => 'bar' }
           }).and_yield
